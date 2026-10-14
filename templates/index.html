@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodLink - Reducing Food Waste in Communities</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col font-sans">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 glass-nav">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 sm:h-20">
+                <!-- Brand Logo -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchRole('recipient')">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+                        <i class="fa-solid fa-seedling text-lg sm:text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Food<span class="text-emerald-600">Link</span></span>
+                            <span class="hidden sm:inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 tracking-wider uppercase">Hackathon Prototype</span>
+                        </div>
+                        <p class="hidden sm:block text-[11px] text-slate-500 font-medium -mt-1">Connecting Surplus Food with Communities</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs: Mode Switcher -->
+                <nav class="flex items-center bg-slate-100/90 p-1 rounded-2xl border border-slate-200 text-xs sm:text-sm font-semibold overflow-x-auto max-w-[50%] sm:max-w-none">
+                    <button data-role="recipient" class="role-nav-btn px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 bg-emerald-600 text-white shadow-md flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>Find Food</span>
+                    </button>
+                    <button data-role="my-pickups" class="role-nav-btn px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 text-slate-600 hover:bg-slate-200/60 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-ticket"></i>
+                        <span>My Pickups</span>
+                        <span id="recipientBadgeCount" class="hidden text-[10px] bg-blue-600 text-white px-1.5 py-0.2 rounded-full font-bold">0</span>
+                    </button>
+                    <button data-role="donor" class="role-nav-btn px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 text-slate-600 hover:bg-slate-200/60 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-store"></i>
+                        <span>Donor Portal</span>
+                    </button>
+                    <button data-role="impact" class="role-nav-btn px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 text-slate-600 hover:bg-slate-200/60 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Impact</span>
+                    </button>
+                </nav>
+
+                <!-- Action Controls -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- Simulate Alert Button (for hackathon judges demo) -->
+                    <button id="simAlertBtn" title="Simulate Push Alert" 
+                            class="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-smooth">
+                        <i class="fa-solid fa-tower-broadcast text-rose-500 animate-pulse"></i>
+                        <span>Test Alert</span>
+                    </button>
+
+                    <!-- Sound toggle -->
+                    <button id="soundToggle" title="Toggle Sound Chime" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 flex items-center justify-center transition-smooth">
+                        <i class="fa-solid fa-volume-high text-emerald-600"></i>
+                    </button>
+
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button id="notificationBtn" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 flex items-center justify-center transition-smooth relative">
+                            <i class="fa-solid fa-bell"></i>
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow">
+                                0
+                            </span>
+                        </button>
+
+                        <!-- Notification Dropdown Drawer -->
+                        <div id="notificationDrawer" class="hidden absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                            <div class="p-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-bell text-emerald-600 text-sm"></i>
+                                    <span class="font-bold text-slate-800 text-sm">Live Food Alerts</span>
+                                </div>
+                                <button id="closeNotifDrawer" class="text-slate-400 hover:text-slate-600 text-sm">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div id="notificationList" class="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Floating Live Alert Banner (Toast) -->
+    <div id="floatingToast" class="hidden fixed top-24 right-4 sm:right-8 z-50 max-w-sm sm:max-w-md bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-emerald-500/40 flex items-start gap-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+            <i class="fa-solid fa-bell text-base animate-bounce"></i>
+        </div>
+        <div class="flex-1 pr-2">
+            <h4 id="toastTitle" class="text-sm font-bold text-emerald-300">Surplus Food Alert</h4>
+            <p id="toastMessage" class="text-xs text-slate-200 mt-0.5 leading-relaxed">A nearby restaurant has posted fresh meals!</p>
+        </div>
+        <button onclick="document.getElementById('floatingToast').classList.add('hidden')" class="text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ========================================== -->
+        <!-- TAB 1: RECIPIENT / FIND FOOD SECTION      -->
+        <!-- ========================================== -->
+        <section id="recipientSection" class="space-y-6">
+            
+            <!-- Hero Banner: Explaining FoodLink -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white p-6 sm:p-8 shadow-xl">
+                <div class="absolute -right-8 -bottom-10 opacity-10 text-9xl">
+                    <i class="fa-solid fa-utensils"></i>
+                </div>
+                <div class="relative z-10 max-w-3xl">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md text-emerald-200 text-xs font-semibold mb-3">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Community Surplus Food Exchange
+                    </div>
+                    <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+                        Rescue Surplus Food.<br class="hidden sm:inline">Feed Nearby Communities.
+                    </h1>
+                    <p class="text-xs sm:text-sm text-emerald-100 mt-2 font-normal leading-relaxed">
+                        FoodLink bridges local businesses with charities, shelters, and residents. Donors post edible surplus in 60 seconds, recipients reserve food instantly, and verified handovers keep good food out of landfills.
+                    </p>
+
+                    <!-- Search & Multi-Filter Bar -->
+                    <div class="mt-6 flex flex-col sm:flex-row items-stretch gap-2.5 bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/20">
+                        <!-- Search Box -->
+                        <div class="flex-1 flex items-center gap-2 px-3 bg-white rounded-xl shadow-inner text-slate-800">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
+                            <input type="text" id="searchInput" placeholder="Search food items, bakeries, caterers, or streets..." 
+                                   class="w-full py-2.5 text-xs sm:text-sm bg-transparent outline-none font-medium placeholder-slate-400">
+                        </div>
+
+                        <!-- Distance Filter -->
+                        <div class="flex items-center">
+                            <select id="distanceFilter" class="w-full sm:w-auto bg-white text-slate-800 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl border-0 shadow-inner outline-none">
+                                <option value="">Any Distance</option>
+                                <option value="2">Within 2 km</option>
+                                <option value="5">Within 5 km</option>
+                                <option value="10">Within 10 km</option>
+                            </select>
+                        </div>
+
+                        <!-- Dietary Filter -->
+                        <div class="flex items-center">
+                            <select id="dietaryFilter" class="w-full sm:w-auto bg-white text-slate-800 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl border-0 shadow-inner outline-none">
+                                <option value="">All Dietary</option>
+                                <option value="Vegetarian">Vegetarian</option>
+                                <option value="Vegan">Vegan</option>
+                                <option value="Halal">Halal</option>
+                                <option value="Gluten-Free">Gluten-Free</option>
+                            </select>
+                        </div>
+
+                        <!-- Pickup Time Filter -->
+                        <div class="flex items-center">
+                            <select id="timeFilter" class="w-full sm:w-auto bg-white text-slate-800 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl border-0 shadow-inner outline-none">
+                                <option value="">All Pickup Times</option>
+                                <option value="urgent">Urgent (&lt; 2 hrs)</option>
+                                <option value="today">Today (&lt; 6 hrs)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How FoodLink Works: 4-Step Process Guide -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                    <span class="text-xs uppercase font-extrabold tracking-wider text-emerald-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-route"></i> Complete Food Rescue Journey
+                    </span>
+                    <span class="text-[11px] text-slate-400">4-Step Verified Handover</span>
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div class="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 flex items-start gap-2.5">
+                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0">1</span>
+                        <div>
+                            <strong class="text-slate-800 block">Donor Posts</strong>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Surplus food posted in 60s with quantity, tags & deadline.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-teal-50/60 rounded-xl border border-teal-100 flex items-start gap-2.5">
+                        <span class="w-6 h-6 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-xs shrink-0">2</span>
+                        <div>
+                            <strong class="text-slate-800 block">Recipient Reserves</strong>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Charity or resident claims batch; gets PIN & QR pass.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex items-start gap-2.5">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">3</span>
+                        <div>
+                            <strong class="text-slate-800 block">Donor Confirms</strong>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Donor confirms food is packed and ready for pickup.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-amber-50/60 rounded-xl border border-amber-100 flex items-start gap-2.5">
+                        <span class="w-6 h-6 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs shrink-0">4</span>
+                        <div>
+                            <strong class="text-slate-800 block">Safe Handover</strong>
+                            <p class="text-slate-600 text-[11px] mt-0.5">PIN verified, food collected, and meals saved tallied.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Chips & View Mode Controls -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <!-- Category Pills -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+                    <button data-category="all" class="category-filter-btn px-4 py-2 rounded-xl bg-emerald-600 text-white shadow-sm whitespace-nowrap">
+                        All Surplus
+                    </button>
+                    <button data-category="Cooked Meals" class="category-filter-btn px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-smooth whitespace-nowrap">
+                        🍱 Cooked Meals
+                    </button>
+                    <button data-category="Bakery" class="category-filter-btn px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-smooth whitespace-nowrap">
+                        🥖 Bakery & Bread
+                    </button>
+                    <button data-category="Fresh Produce" class="category-filter-btn px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-smooth whitespace-nowrap">
+                        🥬 Fresh Produce
+                    </button>
+                    <button data-category="Dairy & Chilled" class="category-filter-btn px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-smooth whitespace-nowrap">
+                        🥛 Dairy & Chilled
+                    </button>
+                    <button data-category="Packaged & Pantry" class="category-filter-btn px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-smooth whitespace-nowrap">
+                        🥫 Pantry Staples
+                    </button>
+                </div>
+
+                <!-- Right controls: View Toggle & Badge -->
+                <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                    <span id="listingsCountBadge" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                        Loading listings...
+                    </span>
+
+                    <div class="flex items-center bg-slate-200/80 p-1 rounded-xl text-xs font-bold">
+                        <button id="viewListBtn" class="px-3 py-1.5 rounded-lg bg-white text-slate-800 shadow-sm flex items-center gap-1.5 transition-smooth">
+                            <i class="fa-solid fa-list"></i> List View
+                        </button>
+                        <button id="viewMapBtn" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-smooth">
+                            <i class="fa-solid fa-map-location-dot"></i> Map View
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View 1: Listings Cards Grid -->
+            <div id="listingsListView" class="block">
+                <div id="listingsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+
+            <!-- View 2: Interactive Map View -->
+            <div id="listingsMapView" class="hidden">
+                <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-map-pin text-emerald-600"></i>
+                            <h3 class="font-bold text-slate-800 text-sm">Nearby Food Rescue Map</h3>
+                            <span class="text-xs text-slate-500">(Click any pin to inspect & reserve food)</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs">
+                            <span class="flex items-center gap-1 font-medium text-emerald-700"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Available</span>
+                            <span class="flex items-center gap-1 font-medium text-rose-700"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Urgent (&lt;2h)</span>
+                            <span class="flex items-center gap-1 font-medium text-blue-700"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> Reserved</span>
+                        </div>
+                    </div>
+                    <div id="map"></div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: RECIPIENT DASHBOARD (MY PICKUPS)   -->
+        <!-- ========================================== -->
+        <section id="myPickupsSection" class="hidden space-y-6">
+            
+            <!-- Recipient Hero Banner -->
+            <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-blue-100 text-xs font-semibold mb-3">
+                        <i class="fa-solid fa-hand-holding-heart"></i> Recipient & Charity Portal
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">My Food Reservations & Pickup Passes</h2>
+                    <p class="text-blue-100 text-xs sm:text-sm mt-1 max-w-xl">
+                        Manage your active surplus food claims, track donor packing status, and show your scannable verification PIN upon arrival.
+                    </p>
+                </div>
+                <button onclick="switchRole('recipient')" class="shrink-0 px-5 py-3 bg-white text-blue-800 hover:bg-blue-50 font-bold rounded-2xl shadow transition-smooth flex items-center justify-center gap-2 text-xs sm:text-sm">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>+ Reserve More Food</span>
+                </button>
+            </div>
+
+            <!-- Recipient Key Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-ticket"></i>
+                    </div>
+                    <div>
+                        <div id="recipientActiveCount" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Active Reservations to Collect</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <div>
+                        <div id="recipientMealsCount" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Total Meals Rescued</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-weight-scale"></i>
+                    </div>
+                    <div>
+                        <div id="recipientWeightCount" class="text-2xl font-black text-slate-900">0 kg</div>
+                        <div class="text-xs text-slate-500 font-medium">Food Diverted from Landfills</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Reservations / Live Passes Grid -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-qrcode"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base">Active Food Reservations (Ready to Collect)</h3>
+                            <p class="text-xs text-slate-500">Show your 6-digit PIN or QR code to the donor staff upon arrival.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="recipientActiveListings">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+
+            <!-- Recipient Historical Collected Rescues -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <h3 class="font-bold text-slate-800 text-base mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Past Completed Pickups
+                </h3>
+                <div id="recipientHistoryListings">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: DONOR BUSINESS MODE (POST & MANAGE) -->
+        <!-- ========================================== -->
+        <section id="donorSection" class="hidden space-y-6">
+            
+            <!-- Donor Hero & Quick Post CTA -->
+            <div class="bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-amber-100 text-xs font-semibold mb-3">
+                        <i class="fa-solid fa-store"></i> Business Donor Portal
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Turn Food Waste Into Community Meals</h2>
+                    <p class="text-amber-100 text-xs sm:text-sm mt-1 max-w-xl">
+                        Posting takes 60 seconds. Our automated dispatch system alerts verified charities nearby to pick up surplus food before closing.
+                    </p>
+                </div>
+                <button id="openPostModalBtn" class="shrink-0 px-6 py-3.5 bg-white text-orange-700 hover:bg-amber-50 active:scale-95 font-bold rounded-2xl shadow-lg transition-smooth flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-lg"></i>
+                    <span>+ Post Surplus Food Now</span>
+                </button>
+            </div>
+
+            <!-- Donor Key Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <div>
+                        <div id="donorAvailableCount" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Active Available Listings</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div>
+                        <div id="donorReservedCount" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Pending Pickups (Step 3 & 4)</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-medal"></i>
+                    </div>
+                    <div>
+                        <div id="donorCollectedCount" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Completed Handowers</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <div id="donorTotalListingsCount" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Total Listings Shared</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Pickups Requiring Confirmation & PIN Verification Section -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-handshake"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base">Pending Food Collections (Confirm & Handover)</h3>
+                            <p class="text-xs text-slate-500">Step 3: Confirm food is packed and ready. Step 4: Verify recipient PIN to complete handover.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="donorReservedListings">
+                    <!-- Dynamic reserved listings with Confirm & PIN verify buttons -->
+                </div>
+            </div>
+
+            <!-- Active Listings & History Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Currently Active Postings -->
+                <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-base mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-bullhorn text-emerald-600"></i> Active Surplus Postings (Available)
+                    </h3>
+                    <div id="donorActiveListings" class="space-y-2">
+                        <!-- Dynamic active items -->
+                    </div>
+                </div>
+
+                <!-- Recent Completed Rescues -->
+                <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-base mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-check-double text-slate-600"></i> Recently Handed Over
+                    </h3>
+                    <div id="donorCompletedListings" class="space-y-2">
+                        <!-- Dynamic completed items -->
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: IMPACT & CITY ANALYTICS DASHBOARD   -->
+        <!-- ========================================== -->
+        <section id="impactSection" class="hidden space-y-6">
+
+            <!-- Hero Impact Metrics Header -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-2">
+                            <i class="fa-solid fa-earth-americas"></i> Environmental & Community Impact Tracker
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Real-Time Waste Reduction Analytics</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                            Calculated using FAO & EPA standards: 1 kg diverted = 2.2 meals, 2.5 kg CO₂e prevented, 850L water conserved.
+                        </p>
+                    </div>
+                    <button id="openCertBtn" class="self-start md:self-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition-smooth flex items-center gap-2">
+                        <i class="fa-solid fa-award text-amber-300"></i> Generate Impact Certificate
+                    </button>
+                </div>
+
+                <!-- 5 Key Impact Counter Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 pt-6">
+                    <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100">
+                        <span class="text-xs text-emerald-700 font-semibold block mb-1">
+                            <i class="fa-solid fa-utensils mr-1"></i> Meals Saved
+                        </span>
+                        <div id="statMealsSaved" class="text-2xl sm:text-3xl font-black text-emerald-900">1,240</div>
+                        <span class="text-[10px] text-emerald-600 font-medium">Provided to hungry families</span>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-teal-50/70 border border-teal-100">
+                        <span class="text-xs text-teal-700 font-semibold block mb-1">
+                            <i class="fa-solid fa-weight-scale mr-1"></i> Food Diverted
+                        </span>
+                        <div id="statKgDiverted" class="text-2xl sm:text-3xl font-black text-teal-900">560</div>
+                        <span class="text-[10px] text-teal-600 font-medium">kg kept out of landfills</span>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-blue-50/70 border border-blue-100">
+                        <span class="text-xs text-blue-700 font-semibold block mb-1">
+                            <i class="fa-solid fa-cloud-arrow-down mr-1"></i> CO₂e Prevented
+                        </span>
+                        <div id="statCo2Prevented" class="text-2xl sm:text-3xl font-black text-blue-900">1,400</div>
+                        <span class="text-[10px] text-blue-600 font-medium">kg greenhouse emissions cut</span>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-cyan-50/70 border border-cyan-100">
+                        <span class="text-xs text-cyan-700 font-semibold block mb-1">
+                            <i class="fa-solid fa-droplet mr-1"></i> Water Conserved
+                        </span>
+                        <div id="statWaterSaved" class="text-2xl sm:text-3xl font-black text-cyan-900">476,000</div>
+                        <span class="text-[10px] text-cyan-600 font-medium">Liters embedded water saved</span>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-100 col-span-2 sm:col-span-1">
+                        <span class="text-xs text-amber-700 font-semibold block mb-1">
+                            <i class="fa-solid fa-hand-holding-heart mr-1"></i> Listings Shared
+                        </span>
+                        <div id="statTotalListings" class="text-2xl sm:text-3xl font-black text-amber-900">50</div>
+                        <span class="text-[10px] text-amber-600 font-medium">Batches exchanged to date</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Food Waste Rescued Trend -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-emerald-600"></i> Daily Food Rescue Trend (kg)
+                        </h3>
+                        <span class="text-[11px] text-slate-400">Past 7 Days</span>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="trendImpactChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rescued Food Category Breakdown -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-emerald-600"></i> Rescue Breakdown by Category
+                        </h3>
+                        <span class="text-[11px] text-slate-400">Total Portions</span>
+                    </div>
+                    <div class="h-64 relative flex items-center justify-center">
+                        <canvas id="categoryImpactChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboards & Live Community Feed -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Top Donor Businesses -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-500"></i> Top Food Donors
+                    </h3>
+                    <div id="donorLeaderboardList" class="space-y-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Top Rescuing Charities -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-heart text-rose-500"></i> Top Beneficiary Shelters
+                    </h3>
+                    <div id="charityLeaderboardList" class="space-y-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Live Community Activity Feed -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-emerald-600"></i> Live Rescue Feed
+                    </h3>
+                    <div id="activityFeedList" class="space-y-1 max-h-72 overflow-y-auto">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-6 text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800">FoodLink</span>
+                <span>• Hackathon Prototype for Reducing Food Waste in Communities</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="resetSeedBtn" class="text-slate-500 hover:text-emerald-700 font-semibold underline flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right"></i> Reset Demo Data
+                </button>
+                <span>Built with Python Flask & Leaflet</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 1: LISTING DETAILS MODAL (FULL VIEW)              -->
+    <!-- ======================================================== -->
+    <div id="listingDetailModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 my-8 overflow-hidden max-h-[92vh] flex flex-col">
+            <!-- Modal Header Image -->
+            <div class="relative h-56 sm:h-64 w-full bg-slate-100 shrink-0">
+                <img id="detailImage" src="" alt="Food Item" class="w-full h-full object-cover">
+                <button id="closeDetailModalBtn" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-smooth">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="absolute bottom-4 left-4 flex flex-wrap gap-2">
+                    <span id="detailCategoryBadge" class="bg-emerald-600/90 text-white text-xs font-bold px-3 py-1 rounded-lg backdrop-blur-sm shadow">
+                        Cooked Meals
+                    </span>
+                    <span id="detailStatusBadge" class="bg-white/90 text-slate-900 text-xs font-bold px-3 py-1 rounded-lg backdrop-blur-sm shadow">
+                        Available Now
+                    </span>
+                    <span id="detailDistanceBadge" class="bg-slate-900/80 text-white text-xs font-medium px-3 py-1 rounded-lg backdrop-blur-sm shadow">
+                        <i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> <span id="detailDistance">1.2 km</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-6 sm:p-8 overflow-y-auto space-y-5">
+                <div>
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span id="detailBusinessName" class="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                            Golden Crust Bakery
+                        </span>
+                        <span id="detailUrgencyBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                            Expires in 2h 30m
+                        </span>
+                    </div>
+                    <h2 id="detailTitle" class="text-xl sm:text-2xl font-black text-slate-900">
+                        Fresh Artisan Sourdough
+                    </h2>
+                    <p id="detailDescription" class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                        End-of-day surplus artisanal sourdough loaves, crusty baguettes, and assorted chocolate croissants baked fresh this morning. Safely bagged and packaged.
+                    </p>
+                </div>
+
+                <!-- Quantity & Impact Summary Grid -->
+                <div class="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Available Quantity</span>
+                        <div id="detailQuantity" class="text-sm sm:text-base font-black text-slate-800">18 Loaves</div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Est. Meals</span>
+                        <div id="detailMeals" class="text-sm sm:text-base font-black text-emerald-700">~28 meals</div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Weight</span>
+                        <div id="detailWeight" class="text-sm sm:text-base font-black text-teal-700">12.5 kg</div>
+                    </div>
+                </div>
+
+                <!-- Dietary & Allergen Safety Information -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Dietary & Safety Details</h4>
+                    
+                    <div class="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-100 text-xs">
+                        <div class="font-bold text-emerald-900 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-leaf text-emerald-600"></i> Dietary Classifications:
+                        </div>
+                        <p id="detailDietaryTags" class="text-emerald-800">Vegetarian, Halal</p>
+                    </div>
+
+                    <div class="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200 text-xs">
+                        <div class="font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Allergen Declaration:
+                        </div>
+                        <p id="detailAllergenInfo" class="text-amber-800">Contains Gluten / Wheat, Milk / Butter. Nut-free facility.</p>
+                    </div>
+
+                    <div class="p-3.5 bg-blue-50/70 rounded-xl border border-blue-100 text-xs">
+                        <div class="font-bold text-blue-900 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-temperature-arrow-down text-blue-600"></i> Storage & Handling Instructions:
+                        </div>
+                        <p id="detailHandling" class="text-blue-800">Store at ambient temperature. Consume within 24 hours.</p>
+                    </div>
+                </div>
+
+                <!-- Pickup Location & Deadline -->
+                <div class="space-y-2 border-t border-slate-100 pt-4 text-xs">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Pickup Location & Window</h4>
+                    <div class="flex items-start gap-2 text-slate-700">
+                        <i class="fa-solid fa-location-dot text-rose-500 mt-0.5"></i>
+                        <div>
+                            <span id="detailAddress" class="font-semibold text-slate-900">142 Baker Street, Central Plaza</span>
+                            <p id="detailInstructions" class="text-slate-500 italic mt-0.5">Come to the back delivery counter in the alleyway. Ring silver bell.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-rose-700 font-bold pt-1">
+                        <i class="fa-regular fa-clock"></i>
+                        <span>Collection Deadline: <span id="detailDeadline">Today by 8:30 PM</span></span>
+                    </div>
+                </div>
+
+                <!-- Action Button in Modal Footer -->
+                <div id="detailActionContainer" class="pt-2">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 2: POST SURPLUS FOOD MODAL (BUSINESS / DONOR)     -->
+    <!-- ======================================================== -->
+    <div id="postFoodModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 my-8 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900">Post Available Surplus Food</h3>
+                        <p class="text-xs text-slate-500">Alert nearby charities and shelters for quick collection</p>
+                    </div>
+                </div>
+                <button id="closePostModalBtn" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="postFoodForm" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Food Title *</label>
+                        <input type="text" name="title" required placeholder="e.g., Artisan Sourdough & Fresh Croissants"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Business / Donor Name *</label>
+                        <input type="text" name="business_name" required placeholder="e.g., Central Bakery & Cafe"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Business Type</label>
+                        <select name="business_type" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                            <option value="Restaurant">Restaurant</option>
+                            <option value="Bakery">Bakery</option>
+                            <option value="Grocery Store">Grocery Store</option>
+                            <option value="Cafe">Cafe</option>
+                            <option value="Caterer">Caterer / Event</option>
+                            <option value="Household">Household / Individual</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Food Category *</label>
+                        <select name="category" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                            <option value="Cooked Meals">Cooked Meals</option>
+                            <option value="Bakery">Bakery</option>
+                            <option value="Fresh Produce">Fresh Produce</option>
+                            <option value="Dairy & Chilled">Dairy & Chilled</option>
+                            <option value="Packaged & Pantry">Packaged & Pantry</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dietary Tags</label>
+                        <input type="text" name="dietary_tags" placeholder="Vegetarian, Halal, etc." value="Vegetarian"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Allergen Information</label>
+                        <input type="text" name="allergen_info" placeholder="e.g., Contains Dairy, Wheat. Nut-Free." value="No major allergens declared"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Handling / Storage Note</label>
+                        <input type="text" name="handling_instructions" placeholder="e.g., Keep refrigerated at 4°C" value="Safe food handling: Keep chilled or insulated until delivery."
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Quantity Description *</label>
+                        <input type="text" name="quantity" required placeholder="e.g., 20 Meal Boxes"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Est. Weight (kg) *</label>
+                        <input type="number" step="0.5" id="postWeight" name="weight_kg" required value="8.0"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Calculated Meals</label>
+                        <input type="number" id="postMeals" name="estimated_meals" value="18"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 font-bold text-emerald-700 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Pickup Location & Deadline -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pickup Address *</label>
+                        <input type="text" name="pickup_address" required placeholder="e.g., 74 Olive Walk, Central Market"
+                               value="142 Baker Street, Central Plaza"
+                               class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-bold text-slate-700 uppercase">Collection Deadline *</label>
+                            <div class="flex gap-1 text-[10px]">
+                                <button type="button" data-hours="2" class="deadline-preset-btn text-emerald-600 hover:underline font-bold">+2h</button>
+                                <button type="button" data-hours="4" class="deadline-preset-btn text-emerald-600 hover:underline font-bold">+4h</button>
+                                <button type="button" data-hours="9" class="deadline-preset-btn text-emerald-600 hover:underline font-bold">Tonight</button>
+                            </div>
+                        </div>
+                        <input type="datetime-local" id="postDeadline" name="deadline_time" required
+                               class="w-full text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Pickup Instructions</label>
+                    <input type="text" name="pickup_instructions" placeholder="e.g., Come to back alley kitchen door, ring silver bell"
+                           value="Ring bell at front counter and mention FoodLink pickup."
+                           class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+
+                <!-- Food Photo Selection (Presets or Custom Upload) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Food Photo</label>
+                    <input type="hidden" id="postImageUrl" name="image_url" value="https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80">
+                    
+                    <div class="flex items-center gap-2 overflow-x-auto pb-2">
+                        <button type="button" data-url="https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80" 
+                                class="preset-photo-btn ring-4 ring-emerald-500 rounded-xl overflow-hidden w-20 h-16 shrink-0 relative">
+                            <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=200&q=80" class="w-full h-full object-cover">
+                            <span class="absolute inset-0 bg-black/40 text-[9px] text-white flex items-end p-1 font-bold">Cooked</span>
+                        </button>
+                        <button type="button" data-url="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80" 
+                                class="preset-photo-btn rounded-xl overflow-hidden w-20 h-16 shrink-0 relative">
+                            <img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=200&q=80" class="w-full h-full object-cover">
+                            <span class="absolute inset-0 bg-black/40 text-[9px] text-white flex items-end p-1 font-bold">Bakery</span>
+                        </button>
+                        <button type="button" data-url="https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=800&q=80" 
+                                class="preset-photo-btn rounded-xl overflow-hidden w-20 h-16 shrink-0 relative">
+                            <img src="https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=200&q=80" class="w-full h-full object-cover">
+                            <span class="absolute inset-0 bg-black/40 text-[9px] text-white flex items-end p-1 font-bold">Produce</span>
+                        </button>
+                        <button type="button" data-url="https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=800&q=80" 
+                                class="preset-photo-btn rounded-xl overflow-hidden w-20 h-16 shrink-0 relative">
+                            <img src="https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=200&q=80" class="w-full h-full object-cover">
+                            <span class="absolute inset-0 bg-black/40 text-[9px] text-white flex items-end p-1 font-bold">Dairy</span>
+                        </button>
+                        <button type="button" data-url="https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80" 
+                                class="preset-photo-btn rounded-xl overflow-hidden w-20 h-16 shrink-0 relative">
+                            <img src="https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=200&q=80" class="w-full h-full object-cover">
+                            <span class="absolute inset-0 bg-black/40 text-[9px] text-white flex items-end p-1 font-bold">Pantry</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="postSubmitBtn" 
+                        class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/30 transition-smooth flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> Post Listing & Alert Charities
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 3: CLAIM FOOD MODAL (RECIPIENT / CHARITY)         -->
+    <!-- ======================================================== -->
+    <div id="claimModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <i class="fa-solid fa-hand-holding-heart"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-slate-900">Reserve Surplus Food</h3>
+                        <p class="text-xs text-slate-500">Lock this batch for your charity pickup</p>
+                    </div>
+                </div>
+                <button id="closeClaimModalBtn" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="bg-emerald-50/70 border border-emerald-100 rounded-2xl p-4 mb-4 text-xs space-y-1.5">
+                <h4 id="claimFoodTitle" class="font-bold text-sm text-slate-900">Artisan Sourdough</h4>
+                <div class="text-slate-600 flex items-center justify-between">
+                    <span>Donor: <strong id="claimBusinessName" class="text-slate-800">Golden Crust</strong></span>
+                    <span id="claimQuantity" class="font-bold text-emerald-800">18 Loaves</span>
+                </div>
+                <div class="text-slate-600 flex items-center justify-between">
+                    <span>Est. Impact: <strong id="claimMeals" class="text-emerald-700">~28 meals</strong></span>
+                    <span>Deadline: <strong id="claimDeadline" class="text-rose-600">8:30 PM</strong></span>
+                </div>
+                <div class="text-slate-500 pt-1 border-t border-emerald-100/80">
+                    <i class="fa-solid fa-location-dot text-rose-500 mr-1"></i> <span id="claimAddress">142 Baker Street</span>
+                </div>
+            </div>
+
+            <form id="claimFoodForm" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Your Name *</label>
+                    <input type="text" id="claimVolunteerName" required placeholder="e.g., Sister Teresa" value="Sarah Jenkins"
+                           class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Charity / Organization Name *</label>
+                    <input type="text" id="claimOrgName" required placeholder="e.g., St. Jude Community Kitchen" value="Hope City Food Pantry"
+                           class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contact Phone *</label>
+                    <input type="tel" id="claimPhone" required placeholder="e.g., +91 98765 43210" value="+91 98450 12345"
+                           class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-800 flex items-start gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-amber-600 mt-0.5"></i>
+                    <span>By reserving, you commit to picking up the food before the specified deadline. A unique pickup PIN and digital ticket pass will be generated.</span>
+                </div>
+
+                <button type="submit" id="claimSubmitBtn" 
+                        class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-lg transition-smooth flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> Confirm & Lock Reservation
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 4: PICKUP PASS TICKET MODAL                       -->
+    <!-- ======================================================== -->
+    <div id="ticketModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 overflow-hidden">
+            <!-- Ticket Top Header -->
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white text-center relative">
+                <button id="closeTicketModalBtn" class="absolute top-4 right-4 text-white/80 hover:text-white text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center text-xl mx-auto mb-2">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+                <h3 class="text-lg font-black tracking-tight">FoodLink Pickup Pass</h3>
+                <p class="text-xs text-emerald-100">Present this verification PIN upon arrival</p>
+            </div>
+
+            <!-- Perforated Line Decoration -->
+            <div class="ticket-border bg-white px-6 pt-5 pb-6">
+                <!-- PIN Display -->
+                <div class="text-center mb-4">
+                    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Pickup Verification PIN</span>
+                    <div id="ticketPin" class="text-3xl sm:text-4xl font-mono font-black text-slate-900 tracking-wider my-1 bg-slate-50 py-2 rounded-xl border border-slate-200">
+                        482-910
+                    </div>
+                </div>
+
+                <!-- QR Code container -->
+                <div class="flex justify-center my-3">
+                    <div id="ticketQRCode" class="p-2 bg-white border border-slate-200 rounded-xl shadow-sm"></div>
+                </div>
+
+                <!-- Pickup Details -->
+                <div class="space-y-2 text-xs border-t border-slate-100 pt-3">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Food Item:</span>
+                        <strong id="ticketTitle" class="text-slate-800 text-right">Artisan Sourdough</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Donor Business:</span>
+                        <strong id="ticketBusiness" class="text-slate-800 text-right">Golden Crust Bakery</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Reserved For:</span>
+                        <strong id="ticketOrg" class="text-slate-800 text-right">St. Jude Shelter</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Quantity:</span>
+                        <strong id="ticketQuantity" class="text-slate-800 text-right">18 Loaves</strong>
+                    </div>
+                    <div class="flex justify-between text-rose-600 font-bold">
+                        <span>Collection Deadline:</span>
+                        <span id="ticketDeadline">8:30 PM Today</span>
+                    </div>
+                    <div class="pt-2 border-t border-slate-100">
+                        <span class="text-slate-500 block text-[11px] mb-0.5">Address:</span>
+                        <p id="ticketAddress" class="font-medium text-slate-800 text-[11px]">142 Baker Street, Central Plaza</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px] mb-0.5">Pickup Instructions:</span>
+                        <p id="ticketInstructions" class="text-slate-700 italic text-[11px]">Ring bell at kitchen back alley door.</p>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="mt-5 space-y-2">
+                    <a id="ticketDirectionsLink" href="#" target="_blank" 
+                       class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition-smooth flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-diamond-turn-right"></i> Open Directions in Google Maps
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 5: IMPACT HERO CERTIFICATE (PRINTABLE)            -->
+    <!-- ======================================================== -->
+    <div id="certificateModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 border-4 border-amber-300 relative text-center">
+            <button id="closeCertBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto mb-3">
+                <i class="fa-solid fa-award"></i>
+            </div>
+            
+            <span class="text-xs uppercase font-extrabold tracking-widest text-emerald-700">Official Recognition</span>
+            <h2 class="text-2xl sm:text-3xl font-black text-slate-900 my-2">Community Food Hero Award</h2>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">
+                Presented to recognizing exceptional contribution to reducing food waste and feeding local communities.
+            </p>
+
+            <div class="my-6 p-6 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Meals Rescued</span>
+                    <div id="certMeals" class="text-xl sm:text-2xl font-black text-emerald-700">1,240+</div>
+                </div>
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Food Diverted</span>
+                    <div id="certKg" class="text-xl sm:text-2xl font-black text-teal-700">560 kg</div>
+                </div>
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">CO₂e Cut</span>
+                    <div id="certCo2" class="text-xl sm:text-2xl font-black text-blue-700">1,400 kg</div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-500 pt-4 border-t border-slate-200">
+                <div>
+                    <span class="block font-bold text-slate-800">FoodLink Community Network</span>
+                    <span id="certDate">October 14, 2026</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="printCertBtn" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold flex items-center gap-1.5 hover:bg-slate-800">
+                        <i class="fa-solid fa-print"></i> Print Certificate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core App JS -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
